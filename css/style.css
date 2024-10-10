@@ -1,0 +1,82 @@
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 30px;
+}
+th, td {
+    border: 1px solid black;
+    padding: 15px;
+    text-align: left;
+}
+tr {
+    height: 50px;
+}
+/* Form Styles */
+.form-container {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.form-container h2 {
+    margin-bottom: 10px;
+}
+label {
+    display: block;
+    margin-top: 10px;
+}
+select, input, button {
+    padding: 10px;
+    margin-top: 5px;
+    width: 100%;
+    box-sizing: border-box;
+}
+button {
+    width: auto;
+    margin-top: 15px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+}
+button:hover {
+    background-color: #45a049;
+}
+/* Highlight Borrowed Books */
+.borrowed {
+    background-color: #ffdddd;
+}
+/* Clear Data Button Styles */
+#clearDataBtn {
+    background-color: #f44336;
+    margin-top: 0;
+}
+#clearDataBtn:hover {
+    background-color: #da190b;
+}
+/* Viewer Page Styles */
+body.viewer {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+body.viewer h1 {
+    text-transform: capitalize;
+}
+body.viewer ul {
+    list-style-type: none;
+    padding: 0;
+}
+body.viewer li {
+    margin-bottom: 10px;
+}
+body.viewer a.back-link {
+    display: inline-block;
+    margin-top: 20px;
+    text-decoration: none;
+    color: #0066cc;
+}
+body.viewer a.back-link:hover {
+    text-decoration: underline;
+}
