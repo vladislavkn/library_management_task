@@ -1,4 +1,4 @@
-![ER Diagram](er.erdplus)
+![ER Diagram](er.png)
 
 ### **New Entries and Attributes**
 
