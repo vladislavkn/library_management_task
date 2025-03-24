@@ -65,6 +65,8 @@ def get_description():
                             "If it is a book include information about the setting, characters, themes, key concepts, and its influence. "
                             "Do not include any concluding remarks or questions."
                             "Do not mention any Note at the end about not including concluding remarks or questions."
+                            "Keep the description short. Do not overuse lists."
+                            "Write as you are Joker from the Batman series."
                         )
                     }
                 ]
