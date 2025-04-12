@@ -166,3 +166,5 @@ cython_debug/
 #.idea/
 
 config.ini
+postgres_data
+pgadmin_data

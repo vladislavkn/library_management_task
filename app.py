@@ -1,13 +1,14 @@
 from flask import Flask, render_template, jsonify, request
-import configparser
 import requests
 import logging
+from db import get_connection, close_connection
 from flask_cors import CORS
+from config import config
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 CORS(app)
+app.teardown_appcontext(close_connection)
 
-# Configure logging to DEBUG level for detailed logs
 logging.basicConfig(
     level=logging.DEBUG,  # Changed from INFO to DEBUG
     format='%(asctime)s %(levelname)s %(message)s',
@@ -16,11 +17,6 @@ logging.basicConfig(
     ]
 )
 
-# Load the configuration from the config.ini file
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-# Get the API key and URL from the configuration
 try:
     GEMINI_API_KEY = config.get('API', 'GEMINI_API_KEY')
     GEMINI_API_URL = config.get('API', 'GEMINI_API_URL')
@@ -30,21 +26,22 @@ except Exception as e:
     GEMINI_API_KEY = None
     GEMINI_API_URL = None
 
-# Route to serve the home page
+
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# Route to serve viewer.html
+
 @app.route('/viewer.html')
 def viewer():
     return render_template('viewer.html')
 
-# API route to fetch description from Gemini API
+
 @app.route('/api/description', methods=['GET'])
 def get_description():
     entity_name = request.args.get('name')
-    logging.debug(f"Received request for entity name: {entity_name}")  # Changed to DEBUG
+    # Changed to DEBUG
+    logging.debug(f"Received request for entity name: {entity_name}")
 
     if not entity_name:
         logging.warning("Missing entity name in request.")
@@ -93,10 +90,12 @@ def get_description():
             json=payload,
             timeout=10  # seconds
         )
-        logging.debug(f"Gemini API response status: {response.status_code}")  # Changed to DEBUG
+        # Changed to DEBUG
+        logging.debug(f"Gemini API response status: {response.status_code}")
 
         if response.status_code != 200:
-            logging.error(f"Failed to fetch description from Gemini API. Status code: {response.status_code}")
+            logging.error(
+                f"Failed to fetch description from Gemini API. Status code: {response.status_code}")
             logging.error(f"Response content: {response.text}")
             return jsonify({
                 'error': 'Failed to fetch description from Gemini API',
@@ -106,8 +105,10 @@ def get_description():
 
         response_data = response.json()
         # Extract the description from the response
-        description = response_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', 'No description available.')
-        logging.debug(f"Fetched description: {description}")  # Changed to DEBUG
+        description = response_data.get('candidates', [{}])[0].get('content', {}).get(
+            'parts', [{}])[0].get('text', 'No description available.')
+        # Changed to DEBUG
+        logging.debug(f"Fetched description: {description}")
 
         return jsonify({'description': description})
 
@@ -120,6 +121,7 @@ def get_description():
     except Exception as e:
         logging.exception(f"Unexpected error: {e}")
         return jsonify({'error': 'An unexpected error occurred', 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
