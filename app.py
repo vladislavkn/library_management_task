@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import requests
 import logging
-from db import get_connection, close_connection, check_password, borrow_book
+from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password
 from flask_cors import CORS
 from config import config
 from db import list_available_books
@@ -179,11 +179,77 @@ def borrow_book_endpoint():
 
     except ValueError as e:
         # Handle specific errors like maximum borrow limit reached
+        logging.error(f"ValueError during book borrowing: {e}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         logging.error(f"Error during book borrowing: {e}")
         logging.exception("Exception details:")
         return jsonify({'error': 'Failed to borrow book'}), 500
+
+
+@app.route('/admin')
+def admin_page():
+    return render_template('admin.html')
+
+
+@app.route('/api/admin/register-borrower', methods=['POST'])
+def register_borrower_endpoint():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    email = data.get('email')
+    admin_password = data.get('admin_password')
+
+    if not email or not admin_password:
+        return jsonify({'error': 'Missing required fields (email or admin_password)'}), 400
+
+    try:
+        # First, check if the admin password is correct
+        if not check_admin_password(admin_password):
+            return jsonify({'error': 'Invalid admin password'}), 401
+
+        # If admin password is correct, create the borrower
+        result = create_borrower(email)
+        return jsonify(result), 200
+
+    except ValueError as e:
+        # Handle specific errors
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error during borrower registration: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to register borrower'}), 500
+
+
+@app.route('/api/admin/delete-borrower', methods=['POST'])
+def delete_borrower_endpoint():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    email = data.get('email')
+    admin_password = data.get('admin_password')
+
+    if not email or not admin_password:
+        return jsonify({'error': 'Missing required fields (email or admin_password)'}), 400
+
+    try:
+        # First, check if the admin password is correct
+        if not check_admin_password(admin_password):
+            return jsonify({'error': 'Invalid admin password'}), 401
+
+        # If admin password is correct, delete the borrower
+        delete_borrower(email)
+        return jsonify({'message': f'Borrower with email {email} deleted successfully'}), 200
+
+    except ValueError as e:
+        # Handle specific errors like borrower not found
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error during borrower deletion: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to delete borrower'}), 500
 
 
 if __name__ == '__main__':

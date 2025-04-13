@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Library Catalog</title>
+    <!-- Link to External CSS -->
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Admin resource</h1>
+      <div class="forms-container">
+        <!-- Register Borrower Form -->
+        <div class="form-container">
+          <h2>Register Borrower</h2>
+          <form id="registerBorrowerForm">
+            <label for="registerBorrowerEmail">Email:</label>
+            <input type="email" id="registerBorrowerEmail" required />
+
+            <label for="adminPasswordRegister">Admin Password:</label>
+            <input type="password" id="adminPasswordRegister" required />
+
+            <button type="submit">Register Borrower</button>
+          </form>
+          <div id="registerBorrowerResult" class="form-result"></div>
+        </div>
+
+        <!-- Delete Borrower Form -->
+        <div class="form-container">
+          <h2>Delete Borrower</h2>
+          <form id="deleteBorrowerForm">
+            <label for="deleteBorrowerEmail">Email:</label>
+            <input type="email" id="deleteBorrowerEmail" required />
+
+            <label for="adminPasswordDelete">Admin Password:</label>
+            <input type="password" id="adminPasswordDelete" required />
+
+            <button type="submit">Delete Borrower</button>
+          </form>
+          <div id="deleteBorrowerResult" class="form-result"></div>
+        </div>
+      </div>
+      <a href="/">Public resource</a>
+    </div>
+
+    <!-- Link to External JS -->
+    <script src="/static/js/admin.js"></script>
+  </body>
+</html>

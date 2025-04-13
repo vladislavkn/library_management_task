@@ -33,6 +33,7 @@ def list_available_books(search="", limit=10, offset=0):
     with conn.cursor() as cursor:
         cursor.execute("""
             SELECT
+                b.book_id,
                 b.title,
                 b.author,
                 b.place,
@@ -106,6 +107,28 @@ def create_borrower(email):
         cursor.execute("""
             INSERT INTO Borrower (email, password_hash)
             VALUES (%s, %s);
-        """, (email, password_hash))
+        """, (email, password_hash.decode('utf-8')))
         conn.commit()
     return {'email': email, 'password': password}
+
+
+def delete_borrower(email):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM Borrower
+                WHERE email = %s;
+            """, (email,))
+            if cursor.rowcount == 0:
+                raise ValueError(f"Borrower with email {email} not found.")
+            conn.commit()
+        return True
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise e
+
+
+def check_admin_password(password):
+    admin_password = config.get('ADMIN', 'PASSWORD')
+    return password == admin_password
