@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import requests
 import logging
-from db import get_connection, close_connection
+from db import get_connection, close_connection, check_password, borrow_book
 from flask_cors import CORS
 from config import config
 from db import list_available_books
@@ -153,6 +153,37 @@ def get_description():
     except Exception as e:
         logging.exception(f"Unexpected error: {e}")
         return jsonify({'error': 'An unexpected error occurred', 'message': str(e)}), 500
+
+
+@app.route('/api/borrow', methods=['POST'])
+def borrow_book_endpoint():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    book_id = data.get('book_id')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not book_id or not email or not password:
+        return jsonify({'error': 'Missing required fields (book_id, email, or password)'}), 400
+
+    try:
+        # First, check if the password is correct
+        if not check_password(email, password):
+            return jsonify({'error': 'Invalid email or password'}), 401
+
+        # If password is correct, try to borrow the book
+        borrow_book(book_id, email)
+        return jsonify({'success': True, 'message': 'Book borrowed successfully'}), 200
+
+    except ValueError as e:
+        # Handle specific errors like maximum borrow limit reached
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error during book borrowing: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to borrow book'}), 500
 
 
 if __name__ == '__main__':

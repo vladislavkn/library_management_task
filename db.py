@@ -1,6 +1,9 @@
 from flask import g
 import psycopg2
 from config import config
+from bcrypt import checkpw, hashpw, gensalt
+import random
+import string
 
 
 def get_connection():
@@ -58,3 +61,51 @@ def list_available_books(search="", limit=10, offset=0):
         books = cursor.fetchall()
         return response_to_dicts(cursor, books)
     return books
+
+
+def borrow_book(book_id, borrower_email):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM Borrow
+            WHERE borrower_email = %s AND is_returned = FALSE;
+        """, (borrower_email,))
+        active_borrows_count = cursor.fetchone()[0]
+        if active_borrows_count >= 3:
+            raise ValueError(
+                "Borrower has reached the maximum limit of 3 active borrows.")
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO Borrow (book_id, borrower_email, start_date, return_date)
+            VALUES (%s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month');
+        """, (book_id, borrower_email))
+        conn.commit()
+
+
+def check_password(email, password):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT password_hash
+            FROM Borrower
+            WHERE email = %s;
+        """, (email,))
+        if cursor.rowcount == 0:
+            return False
+        password_hash = cursor.fetchone()[0]
+        return checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+
+
+def create_borrower(email):
+    password = ''.join(random.choices(
+        string.ascii_letters + string.digits, k=16))
+    password_hash = hashpw(password.encode('utf-8'), gensalt())
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO Borrower (email, password_hash)
+            VALUES (%s, %s);
+        """, (email, password_hash))
+        conn.commit()
+    return {'email': email, 'password': password}

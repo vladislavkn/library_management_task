@@ -36,7 +36,7 @@ function renderBooks(books) {
 
   if (books.length === 0) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="9">No books found</td>';
+    row.innerHTML = '<td colspan="6">No books found</td>';
     bookTable.appendChild(row);
     return;
   }
@@ -47,7 +47,7 @@ function renderBooks(books) {
     row.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
-      <td>${book.place}</td>
+      <td>${book.place || "-"}</td>
       <td>${book.publisher}</td>
       <td>${book.genre}</td>
       <td>${book.available_copies}</td>
@@ -64,16 +64,18 @@ function updateBookSelections(books) {
   returnBookSelect.innerHTML = '<option value="">Select a Book</option>';
 
   // Add available books to borrow dropdown
-  books.forEach((book) => {
-    const option = document.createElement("option");
-    option.value = book.book_id;
-    option.textContent = `${book.title} by ${book.author}`;
-    borrowBookSelect.appendChild(option);
-  });
+  books
+    .filter((book) => book.available_copies > 0)
+    .forEach((book) => {
+      const option = document.createElement("option");
+      option.value = book.book_id;
+      option.textContent = `${book.title} by ${book.author}`;
+      borrowBookSelect.appendChild(option);
+    });
 
   // Add borrowed books to return dropdown
   books
-    .filter((book) => book.active_borrow_count > 0)
+    .filter((book) => book.available_copies < book.quantity)
     .forEach((book) => {
       const option = document.createElement("option");
       option.value = book.book_id;
@@ -100,10 +102,47 @@ searchForm.addEventListener("submit", async (event) => {
 
 borrowForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  // Implement borrow functionality here
-  console.log("Borrow form submitted");
-  // After successful borrow, refresh the books data
-  init();
+
+  // Get form values
+  const bookId = borrowBookSelect.value;
+  const borrowerEmail = document.getElementById("borrowerEmail").value.trim();
+  const borrowerPassword = document
+    .getElementById("borrowerPassword")
+    .value.trim();
+
+  if (!bookId || !borrowerEmail || !borrowerPassword) {
+    alert("Please fill in all required fields");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/borrow", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        book_id: bookId,
+        email: borrowerEmail,
+        password: borrowerPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to borrow book");
+    }
+
+    alert(data.message || "Book borrowed successfully!");
+    borrowForm.reset();
+
+    // Refresh the books data after successful borrow
+    init();
+  } catch (error) {
+    alert(error.message);
+    console.error("Error borrowing book:", error);
+  }
 });
 
 returnForm.addEventListener("submit", async (event) => {
