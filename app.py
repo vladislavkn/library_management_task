@@ -4,6 +4,7 @@ import logging
 from db import get_connection, close_connection
 from flask_cors import CORS
 from config import config
+from db import list_available_books
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 CORS(app)
@@ -35,6 +36,37 @@ def home():
 @app.route('/viewer.html')
 def viewer():
     return render_template('viewer.html')
+
+
+@app.route('/api/books', methods=['GET'])
+def get_books():
+    search_query = request.args.get('search', '')
+    limit = request.args.get('limit', default=10, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+
+    try:
+        books = list_available_books(search_query, limit, offset)
+        if books is None:
+            logging.error(
+                "list_available_books returned None, indicating an error.")
+            return jsonify({'error': 'Failed to fetch books due to a database issue'}), 500
+        logging.debug(
+            f"Fetched {len(books)} books using list_available_books with search='{search_query}', limit={limit}, offset={offset}.")
+        return jsonify(books)
+    except ImportError:
+        logging.error("Failed to import list_available_books from db module.")
+        return jsonify({'error': 'Server configuration error: Missing function'}), 500
+    except TypeError as e:
+        # Catch if list_available_books doesn't accept the offset argument
+        logging.error(
+            f"Error calling list_available_books, possibly incorrect arguments: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Server configuration error: Function signature mismatch'}), 500
+    except Exception as e:
+        logging.error(f"Error calling list_available_books: {e}")
+        # Log the full traceback for detailed debugging if needed
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to fetch books'}), 500
 
 
 @app.route('/api/description', methods=['GET'])
