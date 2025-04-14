@@ -205,6 +205,10 @@ ALTER TABLE ONLY public.borrow
 ALTER TABLE ONLY public.borrow
     ADD CONSTRAINT borrow_borrower_email_fkey FOREIGN KEY (borrower_email) REFERENCES public.borrower(email) ON DELETE CASCADE;
 
+CREATE INDEX idx_borrow_borrower_email ON borrow(borrower_email);
+CREATE INDEX idx_borrow_is_returned ON borrow(is_returned);
+CREATE INDEX idx_book_title ON book(title);
+
 
 -- Completed on 2025-04-12 16:42:51 UTC
 

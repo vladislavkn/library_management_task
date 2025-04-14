@@ -7,6 +7,8 @@
 
 -- Started on 2025-04-12 16:44:09 UTC
 
+\connect library_db
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;

@@ -28,6 +28,29 @@ def response_to_dicts(cur, rows):
     return [dict(zip(colnames, row)) for row in rows]
 
 
+def list_borrows(email, limit=10, offset=0):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                b.book_id,
+                b.title,
+                b.author,
+                bo.start_date,
+                bo.return_date,
+                bo.is_returned
+            FROM
+                book b
+            RIGHT JOIN borrow bo ON b.book_id = bo.book_id
+            WHERE bo.borrower_email = %s
+            ORDER BY bo.is_returned ASC, b.title ASC
+            LIMIT %s OFFSET %s;
+        """, (email, limit, offset))
+        borrows = cursor.fetchall()
+        return response_to_dicts(cursor, borrows)
+    return borrows
+
+
 def list_available_books(search="", limit=10, offset=0):
     conn = get_connection()
     with conn.cursor() as cursor:

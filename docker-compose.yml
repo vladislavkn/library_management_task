@@ -23,7 +23,6 @@ services:
     environment:
       - POSTGRES_USER=library_user
       - POSTGRES_PASSWORD=library_password
-      - POSTGRES_DB=library_db
     ports:
       - "5432:5432"
     volumes:

@@ -40,9 +40,7 @@
         </tbody>
       </table>
 
-      <!-- Forms Container -->
       <div class="forms-container">
-        <!-- Borrow Form -->
         <div class="form-container">
           <h2>Borrow Book</h2>
           <form id="borrowForm">
@@ -52,38 +50,46 @@
               <!-- Options will be populated dynamically -->
             </select>
 
+            <label for="borrowBookBorrowerEmail">Email:</label>
+            <input type="email" id="borrowBookBorrowerEmail" required />
+
+            <label for="borrowBookBorrowerPassword">Password:</label>
+            <input type="password" id="borrowBookBorrowerPassword" required />
+
+            <button type="submit">Borrow Book</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="forms-container">
+        <div class="form-container">
+          <h2>My Borrowed Books</h2>
+          <form id="borrowedBooksForm">
             <label for="borrowerEmail">Email:</label>
             <input type="email" id="borrowerEmail" required />
 
             <label for="borrowerPassword">Password:</label>
             <input type="password" id="borrowerPassword" required />
 
-            <button type="submit">Borrow Book</button>
-          </form>
-        </div>
-
-        <!-- Return Form -->
-        <div class="form-container">
-          <h2>Return Book</h2>
-          <form id="returnForm">
-            <label for="returnBookId">Book:</label>
-            <select id="returnBookId" required>
-              <option value="">Select a Book</option>
-              <!-- Options will be populated dynamically -->
-            </select>
-
-            <label for="returnDate">Return Date:</label>
-            <input type="date" id="returnDate" required />
-
-            <button type="submit">Return Book</button>
+            <button type="submit">View My Borrows</button>
           </form>
         </div>
       </div>
 
-      <!-- Clear Data Button -->
-      <div class="form-container">
-        <button id="clearDataBtn">Clear All Borrowing Data</button>
-      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Start Date</th>
+            <th>Return Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="borrowed-books-table">
+          <!-- Borrowed book entries will be populated here -->
+        </tbody>
+      </table>
       <a href="/admin">Admin resource</a>
     </div>
 
