@@ -68,7 +68,10 @@ function updateBookSelections(books) {
 
 async function fetchBorrowedBooks(email, password) {
   try {
-    return await fetchAPI("/api/borrowed-books", "POST", { email, password });
+    return await fetchAPI("/api/borrowed-books", "POST", {
+      email,
+      password,
+    });
   } catch (error) {
     console.error("Error fetching borrowed books:", error);
     return [];
@@ -78,14 +81,20 @@ async function fetchBorrowedBooks(email, password) {
 function renderBorrowedBooks(borrowedBooks) {
   const borrowedBooksTable = document.getElementById("borrowed-books-table");
   borrowedBooksTable.innerHTML = "";
+
+  const returnBookSelect = document.getElementById("returnBorrowId");
+  returnBookSelect.innerHTML = '<option value="">Select a Book</option>';
+
   if (borrowedBooks.length === 0) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="5">No borrowed books found</td>';
     borrowedBooksTable.appendChild(row);
     return;
   }
+
   borrowedBooks.forEach((book) => {
     const row = document.createElement("tr");
+
     row.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
@@ -93,7 +102,16 @@ function renderBorrowedBooks(borrowedBooks) {
       <td>${book.return_date}</td>
       <td>${book.is_returned ? "Returned" : "Not Returned"}</td>
     `;
+
     borrowedBooksTable.appendChild(row);
+
+    // Add non-returned books to the return dropdown
+    if (!book.is_returned) {
+      const option = document.createElement("option");
+      option.value = book.borrow_id;
+      option.textContent = `${book.title} by ${book.author}`;
+      returnBookSelect.appendChild(option);
+    }
   });
 }
 
@@ -153,6 +171,41 @@ borrowedBooksForm.addEventListener("submit", async (event) => {
   } catch (error) {
     alert(error.message);
     console.error("Error fetching borrowed books:", error);
+  }
+});
+
+// Event listener for return book form
+const returnBookForm = document.getElementById("returnBookForm");
+returnBookForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const borrowId = document.getElementById("returnBorrowId").value.trim();
+  const email = document.getElementById("returnUserEmail").value.trim();
+  const password = document.getElementById("returnUserPassword").value.trim();
+
+  if (!borrowId || !email || !password) {
+    alert("Please fill in all required fields");
+    return;
+  }
+
+  try {
+    const data = await fetchAPI("/api/return-book", "POST", {
+      borrow_id: borrowId,
+      email: email,
+      password: password,
+    });
+    alert(data.message || "Book returned successfully!");
+    returnBookForm.reset();
+
+    // Refresh borrowed books list to update the UI
+    const borrowedBooks = await fetchBorrowedBooks(email, password);
+    renderBorrowedBooks(borrowedBooks);
+
+    // Also refresh the main book list to show updated availability
+    init();
+  } catch (error) {
+    alert(error.message);
+    console.error("Error returning book:", error);
   }
 });
 

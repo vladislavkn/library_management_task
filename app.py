@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import requests
 import logging
-from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password, list_borrows
+from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password, list_borrows, return_book
 from flask_cors import CORS
 from config import config
 from db import list_available_books
@@ -212,6 +212,34 @@ def get_borrowed_books():
         logging.error(f"Error fetching borrowed books: {e}")
         logging.exception("Exception details:")
         return jsonify({'error': 'Failed to fetch borrowed books'}), 500
+
+
+@app.route('/api/return-book', methods=['POST'])
+def return_book_endpoint():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    borrow_id = data.get('borrow_id')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not borrow_id or not email or not password:
+        return jsonify({'error': 'Missing required fields (borrow_id, email, or password)'}), 400
+
+    try:
+        if not check_password(email, password):
+            return jsonify({'error': 'Invalid email or password'}), 401
+        return_book(borrow_id)
+        return jsonify({'success': True, 'message': 'Book returned successfully'}), 200
+
+    except ValueError as e:
+        logging.error(f"ValueError during book return: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error during book return: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to return book'}), 500
 
 
 @app.route('/admin')

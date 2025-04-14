@@ -33,7 +33,7 @@ def list_borrows(email, limit=10, offset=0):
     with conn.cursor() as cursor:
         cursor.execute("""
             SELECT
-                b.book_id,
+                bo.borrow_id,
                 b.title,
                 b.author,
                 bo.start_date,
@@ -91,14 +91,17 @@ def borrow_book(book_id, borrower_email):
     conn = get_connection()
     with conn.cursor() as cursor:
         cursor.execute("""
-            SELECT COUNT(*)
-            FROM Borrow
-            WHERE borrower_email = %s AND is_returned = FALSE;
-        """, (borrower_email,))
-        active_borrows_count = cursor.fetchone()[0]
-        if active_borrows_count >= 3:
+            SELECT EXISTS (
+                SELECT 1
+                FROM borrow
+                WHERE (book_id = %s AND borrower_email = %s AND is_returned = false)
+                OR ((SELECT COUNT(*) FROM borrow WHERE borrower_email = %s) > 3)
+            ) AS condition_met;
+        """, (book_id, borrower_email, borrower_email))
+        borrow_not_allowed = cursor.fetchone()[0]
+        if borrow_not_allowed:
             raise ValueError(
-                "Borrower has reached the maximum limit of 3 active borrows.")
+                "Borrower has reached the maximum limit of 3 active borrows or the book is already borrowed.")
     with conn.cursor() as cursor:
         cursor.execute("""
             INSERT INTO Borrow (book_id, borrower_email, start_date, return_date)
@@ -150,6 +153,19 @@ def delete_borrower(email):
     except psycopg2.Error as e:
         conn.rollback()
         raise e
+
+
+def return_book(borrow_id):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            UPDATE borrow
+            SET is_returned = TRUE
+            WHERE borrow_id = %s AND is_returned = FALSE;
+        """, (borrow_id,))
+        if cursor.rowcount == 0:
+            raise ValueError("No active borrow found for this book.")
+        conn.commit()
 
 
 def check_admin_password(password):

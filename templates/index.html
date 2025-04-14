@@ -43,6 +43,10 @@
       <div class="forms-container">
         <div class="form-container">
           <h2>Borrow Book</h2>
+          <p class="form-hint">
+            The list of available books will be loaded when the book catalog is
+            fetched.
+          </p>
           <form id="borrowForm">
             <label for="borrowBookId">Book:</label>
             <select id="borrowBookId" required>
@@ -90,6 +94,33 @@
           <!-- Borrowed book entries will be populated here -->
         </tbody>
       </table>
+
+      <!-- Return Book Form -->
+      <div class="forms-container">
+        <div class="form-container">
+          <h2>Return Book</h2>
+          <p class="form-hint">
+            The list of books available for return will be updated when you view
+            your borrowed books.
+          </p>
+          <form id="returnBookForm">
+            <label for="returnBorrowId">Book:</label>
+            <select id="returnBorrowId" required>
+              <option value="">Select a Book</option>
+              <!-- Options will be populated dynamically -->
+            </select>
+
+            <label for="returnUserEmail">Email:</label>
+            <input type="email" id="returnUserEmail" required />
+
+            <label for="returnUserPassword">Password:</label>
+            <input type="password" id="returnUserPassword" required />
+
+            <button type="submit">Return Book</button>
+          </form>
+        </div>
+      </div>
+
       <a href="/admin">Admin resource</a>
     </div>
 
