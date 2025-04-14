@@ -40,6 +40,34 @@
           </form>
           <div id="deleteBorrowerResult" class="form-result"></div>
         </div>
+
+        <!-- Active Borrows Section -->
+        <div class="form-container">
+          <h2>Active Borrows</h2>
+          <form id="viewActiveBorrowsForm">
+            <label for="adminPasswordBorrows">Admin Password:</label>
+            <input type="password" id="adminPasswordBorrows" required />
+            <button type="submit">View Active Borrows</button>
+          </form>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Borrower Email</th>
+            <th>Start Date</th>
+            <th>Return Date</th>
+          </tr>
+        </thead>
+        <tbody id="active-borrows-table">
+          <!-- Active borrows will be populated here -->
+        </tbody>
+      </table>
+      <div class="pagination-controls">
+        <button id="prevBorrowsBtn" disabled>Previous</button>
+        <button id="nextBorrowsBtn">Next</button>
       </div>
       <a href="/">Public resource</a>
     </div>

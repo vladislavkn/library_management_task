@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   app:
     build:
@@ -11,8 +9,6 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
-    networks:
-      - library_network
     volumes:
       - ./:/app
 
@@ -23,13 +19,12 @@ services:
     environment:
       - POSTGRES_USER=library_user
       - POSTGRES_PASSWORD=library_password
+      - POSTGRES_DB=library_db
     ports:
       - "5432:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
       - ./sql_init:/docker-entrypoint-initdb.d
-    networks:
-      - library_network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -44,11 +39,5 @@ services:
       - postgres
     volumes:
       - ./pgadmin_data:/var/lib/pgadmin
-    networks:
-      - library_network
     profiles:
       - admin
-
-networks:
-  library_network:
-    driver: bridge

@@ -18,14 +18,10 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-DROP DATABASE IF EXISTS library_db;
 --
 -- TOC entry 3415 (class 1262 OID 16384)
 -- Name: library_db; Type: DATABASE; Schema: -; Owner: library_user
 --
-
-CREATE DATABASE library_db WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE_PROVIDER = libc LOCALE = 'en_US.utf8';
-
 
 ALTER DATABASE library_db OWNER TO library_user;
 
@@ -100,7 +96,7 @@ CREATE TABLE public.borrow (
     book_id integer NOT NULL,
     borrower_email character varying(255) NOT NULL,
     start_date date NOT NULL,
-    return_date date,
+    return_date date NOT NULL,
     is_returned boolean DEFAULT false
 );
 
@@ -205,9 +201,9 @@ ALTER TABLE ONLY public.borrow
 ALTER TABLE ONLY public.borrow
     ADD CONSTRAINT borrow_borrower_email_fkey FOREIGN KEY (borrower_email) REFERENCES public.borrower(email) ON DELETE CASCADE;
 
-CREATE INDEX idx_borrow_borrower_email ON borrow(borrower_email);
-CREATE INDEX idx_borrow_is_returned ON borrow(is_returned);
-CREATE INDEX idx_book_title ON book(title);
+CREATE INDEX idx_borrow_borrower_email ON public.borrow(borrower_email);
+CREATE INDEX idx_borrow_is_returned ON public.borrow(is_returned);
+CREATE INDEX idx_book_title ON public.book(title);
 
 
 -- Completed on 2025-04-12 16:42:51 UTC

@@ -61,10 +61,10 @@ carol@example.com	hash3
 
 COPY public.borrow (borrow_id, book_id, borrower_email, start_date, return_date, is_returned) FROM stdin;
 1	1	alice@example.com	2025-04-01	2025-04-10	t
-2	2	alice@example.com	2025-04-05	\N	f
+2	2	alice@example.com	2025-04-05	2025-05-05	f
 3	3	bob@example.com	2025-03-28	2025-04-03	t
-4	4	carol@example.com	2025-04-07	\N	f
-5	9	bob@example.com	2025-04-10	\N	f
+4	4	carol@example.com	2025-04-07	2025-05-03	f
+5	9	bob@example.com	2025-04-10	2025-05-10	f
 \.
 
 

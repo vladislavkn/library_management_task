@@ -1,7 +1,7 @@
 let allBooks = [];
 let currentBookPage = 0;
 let currentBorrowsPage = 0;
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 15;
 
 const searchForm = document.getElementById("searchForm");
 const searchInput = document.getElementById("searchInput");

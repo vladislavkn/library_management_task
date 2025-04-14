@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import requests
 import logging
-from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password, list_borrows, return_book
+from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password, list_borrows, return_book, list_active_borrows
 from flask_cors import CORS
 from config import config
 from db import list_available_books
@@ -307,6 +307,34 @@ def delete_borrower_endpoint():
         logging.error(f"Error during borrower deletion: {e}")
         logging.exception("Exception details:")
         return jsonify({'error': 'Failed to delete borrower'}), 500
+
+
+@app.route('/api/admin/active-borrows', methods=['POST'])
+def list_active_borrows_endpoint():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    admin_password = data.get('admin_password')
+    limit = data.get('limit', 5)  # Default to 5 items per page
+    offset = data.get('offset', 0)
+
+    if not admin_password:
+        return jsonify({'error': 'Missing admin password'}), 400
+
+    try:
+        # Check if the admin password is correct
+        if not check_admin_password(admin_password):
+            return jsonify({'error': 'Invalid admin password'}), 401
+
+        # Get active borrows with pagination
+        active_borrows = list_active_borrows(limit, offset)
+        return jsonify(active_borrows), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching active borrows: {e}")
+        logging.exception("Exception details:")
+        return jsonify({'error': 'Failed to fetch active borrows'}), 500
 
 
 if __name__ == '__main__':

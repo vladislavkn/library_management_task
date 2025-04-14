@@ -168,6 +168,28 @@ def return_book(borrow_id):
         conn.commit()
 
 
+def list_active_borrows(limit=10, offset=0):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                b.title,
+                b.author,
+                bo.borrower_email,
+                bo.start_date,
+                bo.return_date
+            FROM
+                book b
+            JOIN borrow bo ON b.book_id = bo.book_id
+            WHERE bo.is_returned = FALSE
+            ORDER BY bo.return_date ASC
+            LIMIT %s OFFSET %s;
+        """, (limit, offset))
+        active_borrows = cursor.fetchall()
+        return response_to_dicts(cursor, active_borrows)
+    return active_borrows
+
+
 def check_admin_password(password):
     admin_password = config.get('ADMIN', 'PASSWORD')
     return password == admin_password
