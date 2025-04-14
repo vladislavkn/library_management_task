@@ -1,4 +1,7 @@
 let allBooks = [];
+let currentBookPage = 0;
+let currentBorrowsPage = 0;
+const ITEMS_PER_PAGE = 5;
 
 const searchForm = document.getElementById("searchForm");
 const searchInput = document.getElementById("searchInput");
@@ -26,7 +29,9 @@ async function fetchAPI(endpoint, method = "GET", payload = null) {
 
 async function fetchBooks(searchQuery = "") {
   try {
-    const endpoint = `/api/books?search=${encodeURIComponent(searchQuery)}`;
+    const endpoint = `/api/books?search=${encodeURIComponent(
+      searchQuery
+    )}&limit=${ITEMS_PER_PAGE}&offset=${currentBookPage * ITEMS_PER_PAGE}`;
     return await fetchAPI(endpoint);
   } catch (error) {
     console.error("Error fetching books:", error);
@@ -40,8 +45,12 @@ function renderBooks(books) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="6">No books found</td>';
     bookTable.appendChild(row);
+
+    // Disable next button if no results
+    document.getElementById("nextBooksBtn").disabled = true;
     return;
   }
+
   books.forEach((book) => {
     const row = document.createElement("tr");
     row.innerHTML = `
@@ -54,6 +63,11 @@ function renderBooks(books) {
     `;
     bookTable.appendChild(row);
   });
+
+  // Update pagination buttons
+  document.getElementById("prevBooksBtn").disabled = currentBookPage === 0;
+  document.getElementById("nextBooksBtn").disabled =
+    books.length < ITEMS_PER_PAGE;
 }
 
 function updateBookSelections(books) {
@@ -71,6 +85,8 @@ async function fetchBorrowedBooks(email, password) {
     return await fetchAPI("/api/borrowed-books", "POST", {
       email,
       password,
+      limit: ITEMS_PER_PAGE,
+      offset: currentBorrowsPage * ITEMS_PER_PAGE,
     });
   } catch (error) {
     console.error("Error fetching borrowed books:", error);
@@ -89,12 +105,14 @@ function renderBorrowedBooks(borrowedBooks) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="5">No borrowed books found</td>';
     borrowedBooksTable.appendChild(row);
+
+    // Disable next button if no results
+    document.getElementById("nextBorrowsBtn").disabled = true;
     return;
   }
 
   borrowedBooks.forEach((book) => {
     const row = document.createElement("tr");
-
     row.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
@@ -102,10 +120,8 @@ function renderBorrowedBooks(borrowedBooks) {
       <td>${book.return_date}</td>
       <td>${book.is_returned ? "Returned" : "Not Returned"}</td>
     `;
-
     borrowedBooksTable.appendChild(row);
 
-    // Add non-returned books to the return dropdown
     if (!book.is_returned) {
       const option = document.createElement("option");
       option.value = book.borrow_id;
@@ -113,6 +129,11 @@ function renderBorrowedBooks(borrowedBooks) {
       returnBookSelect.appendChild(option);
     }
   });
+
+  // Update pagination buttons
+  document.getElementById("prevBorrowsBtn").disabled = currentBorrowsPage === 0;
+  document.getElementById("nextBorrowsBtn").disabled =
+    borrowedBooks.length < ITEMS_PER_PAGE;
 }
 
 async function init() {
@@ -123,6 +144,7 @@ async function init() {
 
 searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  currentBookPage = 0;
   const searchQuery = searchInput.value.trim();
   const books = await fetchBooks(searchQuery);
   renderBooks(books);
@@ -159,6 +181,7 @@ borrowForm.addEventListener("submit", async (event) => {
 
 borrowedBooksForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  currentBorrowsPage = 0;
   const email = document.getElementById("borrowerEmail").value.trim();
   const password = document.getElementById("borrowerPassword").value.trim();
   if (!email || !password) {
@@ -209,4 +232,54 @@ returnBookForm.addEventListener("submit", async (event) => {
   }
 });
 
-document.addEventListener("DOMContentLoaded", init);
+// Add pagination button handlers
+function setupPaginationControls() {
+  document
+    .getElementById("prevBooksBtn")
+    .addEventListener("click", async () => {
+      if (currentBookPage > 0) {
+        currentBookPage--;
+        const books = await fetchBooks(searchInput.value.trim());
+        renderBooks(books);
+        updateBookSelections(books);
+      }
+    });
+
+  document
+    .getElementById("nextBooksBtn")
+    .addEventListener("click", async () => {
+      currentBookPage++;
+      const books = await fetchBooks(searchInput.value.trim());
+      renderBooks(books);
+      updateBookSelections(books);
+    });
+
+  document
+    .getElementById("prevBorrowsBtn")
+    .addEventListener("click", async () => {
+      if (currentBorrowsPage > 0) {
+        currentBorrowsPage--;
+        const email = document.getElementById("borrowerEmail").value.trim();
+        const password = document
+          .getElementById("borrowerPassword")
+          .value.trim();
+        const borrowedBooks = await fetchBorrowedBooks(email, password);
+        renderBorrowedBooks(borrowedBooks);
+      }
+    });
+
+  document
+    .getElementById("nextBorrowsBtn")
+    .addEventListener("click", async () => {
+      currentBorrowsPage++;
+      const email = document.getElementById("borrowerEmail").value.trim();
+      const password = document.getElementById("borrowerPassword").value.trim();
+      const borrowedBooks = await fetchBorrowedBooks(email, password);
+      renderBorrowedBooks(borrowedBooks);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  init();
+  setupPaginationControls();
+});

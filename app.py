@@ -195,6 +195,8 @@ def get_borrowed_books():
 
     email = data.get('email')
     password = data.get('password')
+    limit = data.get('limit', 5)  # Default to 5 items per page
+    offset = data.get('offset', 0)
 
     if not email or not password:
         return jsonify({'error': 'Missing required fields (email or password)'}), 400
@@ -204,8 +206,8 @@ def get_borrowed_books():
         if not check_password(email, password):
             return jsonify({'error': 'Invalid email or password'}), 401
 
-        # Fetch the list of borrows for the user
-        borrows = list_borrows(email)
+        # Fetch the list of borrows for the user with pagination
+        borrows = list_borrows(email, limit, offset)
         return jsonify(borrows), 200
 
     except Exception as e:
