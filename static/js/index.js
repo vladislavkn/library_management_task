@@ -8,39 +8,42 @@ const borrowBookSelect = document.getElementById("borrowBookId");
 const clearDataBtn = document.getElementById("clearDataBtn");
 const borrowedBooksForm = document.getElementById("borrowedBooksForm");
 
-// Fetch books from API
+async function fetchAPI(endpoint, method = "GET", payload = null) {
+  const options = {
+    method,
+    headers: { "Content-Type": "application/json" },
+  };
+  if (payload) {
+    options.body = JSON.stringify(payload);
+  }
+  const response = await fetch(endpoint, options);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+  }
+  return data;
+}
+
 async function fetchBooks(searchQuery = "") {
   try {
-    const response = await fetch(
-      `/api/books?search=${encodeURIComponent(searchQuery)}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const books = await response.json();
-    return books;
+    const endpoint = `/api/books?search=${encodeURIComponent(searchQuery)}`;
+    return await fetchAPI(endpoint);
   } catch (error) {
     console.error("Error fetching books:", error);
     return [];
   }
 }
 
-// Render books in table
 function renderBooks(books) {
   bookTable.innerHTML = "";
-
   if (books.length === 0) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="6">No books found</td>';
     bookTable.appendChild(row);
     return;
   }
-
   books.forEach((book) => {
     const row = document.createElement("tr");
-
     row.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
@@ -49,7 +52,6 @@ function renderBooks(books) {
       <td>${book.genre}</td>
       <td>${book.available_copies}</td>
     `;
-
     bookTable.appendChild(row);
   });
 }
@@ -66,41 +68,24 @@ function updateBookSelections(books) {
 
 async function fetchBorrowedBooks(email, password) {
   try {
-    const response = await fetch("/api/borrowed-books", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const borrowedBooks = await response.json();
-    return borrowedBooks;
+    return await fetchAPI("/api/borrowed-books", "POST", { email, password });
   } catch (error) {
     console.error("Error fetching borrowed books:", error);
     return [];
   }
 }
 
-// Render borrowed books in table
 function renderBorrowedBooks(borrowedBooks) {
   const borrowedBooksTable = document.getElementById("borrowed-books-table");
   borrowedBooksTable.innerHTML = "";
-
   if (borrowedBooks.length === 0) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="5">No borrowed books found</td>';
     borrowedBooksTable.appendChild(row);
     return;
   }
-
   borrowedBooks.forEach((book) => {
     const row = document.createElement("tr");
-
     row.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
@@ -108,19 +93,16 @@ function renderBorrowedBooks(borrowedBooks) {
       <td>${book.return_date}</td>
       <td>${book.is_returned ? "Returned" : "Not Returned"}</td>
     `;
-
     borrowedBooksTable.appendChild(row);
   });
 }
 
-// Initialize the page
 async function init() {
   allBooks = await fetchBooks();
   renderBooks(allBooks);
   updateBookSelections(allBooks);
 }
 
-// Event listeners
 searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const searchQuery = searchInput.value.trim();
@@ -131,8 +113,6 @@ searchForm.addEventListener("submit", async (event) => {
 
 borrowForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
-  // Get form values
   const bookId = borrowBookSelect.value;
   const borrowerEmail = document
     .getElementById("borrowBookBorrowerEmail")
@@ -140,35 +120,18 @@ borrowForm.addEventListener("submit", async (event) => {
   const borrowerPassword = document
     .getElementById("borrowBookBorrowerPassword")
     .value.trim();
-
   if (!bookId || !borrowerEmail || !borrowerPassword) {
     alert("Please fill in all required fields");
     return;
   }
-
   try {
-    const response = await fetch("/api/borrow", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        book_id: bookId,
-        email: borrowerEmail,
-        password: borrowerPassword,
-      }),
+    const data = await fetchAPI("/api/borrow", "POST", {
+      book_id: bookId,
+      email: borrowerEmail,
+      password: borrowerPassword,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Failed to borrow book");
-    }
-
     alert(data.message || "Book borrowed successfully!");
     borrowForm.reset();
-
-    // Refresh the books data after successful borrow
     init();
   } catch (error) {
     alert(error.message);
@@ -178,16 +141,12 @@ borrowForm.addEventListener("submit", async (event) => {
 
 borrowedBooksForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
   const email = document.getElementById("borrowerEmail").value.trim();
   const password = document.getElementById("borrowerPassword").value.trim();
-  console.log(email, password);
-
   if (!email || !password) {
     alert("Please fill in all required fields!");
     return;
   }
-
   try {
     const borrowedBooks = await fetchBorrowedBooks(email, password);
     renderBorrowedBooks(borrowedBooks);
@@ -197,5 +156,4 @@ borrowedBooksForm.addEventListener("submit", async (event) => {
   }
 });
 
-// Initialize the page when DOM is loaded
 document.addEventListener("DOMContentLoaded", init);
