@@ -168,3 +168,4 @@ cython_debug/
 config.ini
 postgres_data
 pgadmin_data
+neo4j_data

@@ -41,3 +41,19 @@ services:
       - ./pgadmin_data:/var/lib/pgadmin
     profiles:
       - admin
+
+  neo4j:
+    image: neo4j:5.26.0
+    environment:
+      NEO4J_PLUGINS: '["apoc-extended"]'
+      NEO4J_AUTH: neo4j/password
+      NEO4J_apoc_export_file_enabled: true
+      NEO4J_apoc_import_file_enabled: true
+      NEO4J_apoc_import_file_use__neo4j__config: true
+    restart: always
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./neo4j_data:/data
+      - ./neo4j_plugins:/plugins

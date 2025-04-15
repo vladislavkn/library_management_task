@@ -102,3 +102,100 @@ The backend consists of two layers:
 - Support for multiple copies of the same book
 - Three-book limit per borrower enforcement
 - Physical location tracking for books
+
+## Migration to Neo4j
+
+This section describes how I've migrated data from the postgres database to neo4j using Neo4j ETL.
+
+1. I've added neo4j service to docker-compose file,
+2. I've struggled a lot installing the correct version of apoc-extended plugin,
+3. I've started docker compose and opened the webui of neo4j,
+4. I've exported the data to neo4j using apoc.load.jdbc procedure using the queries that I show below.
+5. Once the data were moved, I removed postgres and pgadmin containers from the compose file.
+
+### Migration queries
+
+Creating constraints for node properties.
+
+```
+CREATE CONSTRAINT FOR (b:Book) REQUIRE b.book_id IS UNIQUE;
+CREATE CONSTRAINT FOR (br:Borrower) REQUIRE br.email IS UNIQUE;
+```
+
+Moving the books table
+
+```
+CALL apoc.load.jdbc(
+  "jdbc:postgresql://postgres:5432/library_db?user=library_user&password=library_password",
+  "SELECT book_id, title, author, place, quantity, publisher, genre FROM public.book"
+) YIELD row
+MERGE (b:Book {book_id: row.book_id})
+SET b.title = row.title,
+    b.author = row.author,
+    b.place = row.place,
+    b.quantity = row.quantity,
+    b.publisher = row.publisher,
+    b.genre = row.genre;
+```
+
+Moving the borrowers table:
+
+```
+CALL apoc.load.jdbc(
+  "jdbc:postgresql://postgres:5432/library_db?user=library_user&password=library_password",
+  "SELECT email, password_hash FROM public.borrower"
+) YIELD row
+MERGE (br:Borrower {email: row.email})
+SET br.password_hash = row.password_hash;
+```
+
+Moving the borrows table (which turns into the relation type):
+
+```
+CALL apoc.load.jdbc(
+  "jdbc:postgresql://postgres:5432/library_db?user=library_user&password=library_password",
+  "SELECT borrow_id, book_id, borrower_email, start_date, return_date, is_returned FROM public.borrow"
+) YIELD row
+MATCH (b:Book {book_id: row.book_id})
+MATCH (br:Borrower {email: row.borrower_email})
+CREATE (br)-[:BORROWED {
+  borrow_id: row.borrow_id,
+  start_date: row.start_date,
+  return_date: row.return_date,
+  is_returned: row.is_returned
+}]->(b);
+```
+
+### Schema of Neo4j database
+
+#### Nodes
+
+##### Book
+
+Each Book node comes from a record in the PostgreSQL book table and includes the following properties:
+
+- book_id: A unique identifier with a unique constraint.
+- title: The title of the book.
+- author: The name of the author.
+- place: The location associated with the book.
+- quantity: The number of copies available.
+- publisher: The publisher's name.
+- genre: The genre classification of the book.
+
+##### Borrower
+
+Each Borrower node corresponds to a record in the borrower table and includes these properties:
+
+- email: The unique identifier (unique constraint enforced) for the borrower.
+- password_hash: The hashed password for the borrower.
+
+#### Relationship
+
+#### BORROWED
+
+This relationship connects a Borrower node to a Book node. It represents an instance of a book being borrowed and includes properties that record details of the borrowing transaction:
+
+- borrow_id: A unique identifier for the borrow transaction.
+- start_date: The date when the book was borrowed.
+- return_date: The expected return date for the book.
+- is_returned: A boolean flag indicating whether the book has been returned.
