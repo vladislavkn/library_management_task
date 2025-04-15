@@ -1,126 +1,123 @@
 from flask import g
-import psycopg2
+from neo4j import GraphDatabase
 from config import config
 from bcrypt import checkpw, hashpw, gensalt
 import random
 import string
+import json
 
 
 def get_connection():
-    if "db_conn" not in g:
-        g.db_conn = psycopg2.connect(
-            host=config.get('DATABASE', 'HOST'),
-            database=config.get('DATABASE', 'NAME'),
-            user=config.get('DATABASE', 'USER'),
-            password=config.get('DATABASE', 'PASSWORD')
+    if "db_driver" not in g:
+        uri = f"bolt://{config.get('DATABASE', 'HOST')}:{config.get('DATABASE', 'PORT')}"
+        g.db_driver = GraphDatabase.driver(
+            uri,
+            auth=(config.get('DATABASE', 'USER'),
+                  config.get('DATABASE', 'PASSWORD'))
         )
-    return g.db_conn
+    return g.db_driver
 
 
 def close_connection(e=None):
-    db_conn = g.pop('db_conn', None)
-    if db_conn is not None:
-        db_conn.close()
-
-
-def response_to_dicts(cur, rows):
-    colnames = [desc[0] for desc in cur.description]
-    return [dict(zip(colnames, row)) for row in rows]
+    db_driver = g.pop('db_driver', None)
+    if db_driver is not None:
+        db_driver.close()
 
 
 def list_borrows(email, limit=10, offset=0):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT
-                bo.borrow_id,
-                b.title,
-                b.author,
-                bo.start_date,
-                bo.return_date,
-                bo.is_returned
-            FROM
-                book b
-            RIGHT JOIN borrow bo ON b.book_id = bo.book_id
-            WHERE bo.borrower_email = %s
-            ORDER BY bo.is_returned ASC, b.title ASC
-            LIMIT %s OFFSET %s;
-        """, (email, limit, offset))
-        borrows = cursor.fetchall()
-        return response_to_dicts(cursor, borrows)
-    return borrows
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (br:Borrower {email: $email})-[b:BORROWED]->(bk:Book)
+            RETURN b.borrow_id as borrow_id,
+                   bk.title as title,
+                   bk.author as author,
+                   b.start_date as start_date,
+                   b.return_date as return_date,
+                   b.is_returned as is_returned
+            ORDER BY b.is_returned ASC, bk.title ASC
+            SKIP $offset
+            LIMIT $limit
+        """, email=email, limit=limit, offset=offset)
+        return result.data()
 
 
 def list_available_books(search="", limit=10, offset=0):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT
-                b.book_id,
-                b.title,
-                b.author,
-                b.place,
-                b.publisher,
-                b.genre,
-                b.quantity - COALESCE(active_borrows.count, 0) AS available_copies
-            FROM
-                Book b
-            LEFT JOIN (
-                SELECT
-                    book_id,
-                    COUNT(*) AS count
-                FROM
-                    Borrow
-                WHERE
-                    is_returned = FALSE
-                GROUP BY
-                    book_id
-            ) AS active_borrows ON b.book_id = active_borrows.book_id
-            WHERE
-                COALESCE(active_borrows.count, 0) < b.quantity
-                AND LOWER(b.title) LIKE LOWER(%s)
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (b:Book)
+            OPTIONAL MATCH (b)<-[bo:BORROWED {is_returned: false}]-()
+            WHERE toLower(b.title) CONTAINS toLower($search)
+            WITH b, count(bo) as borrowed_count
+            WHERE b.quantity > borrowed_count
+            RETURN b.book_id as book_id,
+                   b.title as title,
+                   b.author as author,
+                   b.place as place,
+                   b.publisher as publisher,
+                   b.genre as genre,
+                   b.quantity - borrowed_count as available_copies
             ORDER BY b.title ASC
-            LIMIT %s OFFSET %s;
-        """, (f'%{search}%', limit, offset))
-        books = cursor.fetchall()
-        return response_to_dicts(cursor, books)
-    return books
+            SKIP $offset
+            LIMIT $limit
+        """, search=search, limit=limit, offset=offset)
+        return result.data()
 
 
 def borrow_book(book_id, borrower_email):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM borrow
-                WHERE (book_id = %s AND borrower_email = %s AND is_returned = false)
-                OR ((SELECT COUNT(*) FROM borrow WHERE borrower_email = %s) > 3)
-            ) AS condition_met;
-        """, (book_id, borrower_email, borrower_email))
-        borrow_not_allowed = cursor.fetchone()[0]
-        if borrow_not_allowed:
-            raise ValueError(
-                "Borrower has reached the maximum limit of 3 active borrows or the book is already borrowed.")
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            INSERT INTO Borrow (book_id, borrower_email, start_date, return_date)
-            VALUES (%s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month');
-        """, (book_id, borrower_email))
-        conn.commit()
+    driver = get_connection()
+    with driver.session() as session:
+        session.execute_write(
+            borrow_book_tx, borrower_email, book_id)
+
+
+def borrow_book_tx(tx, borrower_email, book_id):
+    active_borrows = tx.run("""
+        MATCH (br:Borrower {email: $email})-[b:BORROWED {is_returned: false}]->()
+        RETURN count(b) as count
+    """, email=borrower_email).single()["count"]
+    if active_borrows >= 3:
+        raise ValueError(
+            "Borrower has reached the maximum limit of 3 active borrows")
+
+    already_borrowed = tx.run("""
+        MATCH (br:Borrower {email: $email})-[b:BORROWED {is_returned: false}]->(bk:Book {book_id: toInteger($book_id)})
+        RETURN count(b) > 0 as exists
+    """, email=borrower_email, book_id=book_id).single()["exists"]
+    if already_borrowed:
+        raise ValueError("The book is already borrowed by this user")
+
+    print("book id", book_id)
+    res = tx.run("""
+        MATCH (br:Borrower {email: $email})
+        MATCH (b:Book {book_id: toInteger($book_id)})
+        WITH br, b
+        OPTIONAL MATCH (b)<-[bo:BORROWED {is_returned: false}]-()
+        WITH br, b, count(bo) as borrowed_count
+        WHERE b.quantity > borrowed_count
+        CREATE (br)-[rel:BORROWED {
+            borrow_id: randomUUID(),
+            start_date: date(),
+            return_date: date() + duration('P30D'),
+            is_returned: false
+        }]->(b)
+        RETURN rel
+    """, email=borrower_email, book_id=book_id)
+    return res.single()
 
 
 def check_password(email, password):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT password_hash
-            FROM Borrower
-            WHERE email = %s;
-        """, (email,))
-        if cursor.rowcount == 0:
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (b:Borrower {email: $email})
+            RETURN b.password_hash as password_hash
+        """, email=email)
+        record = result.single()
+        if not record:
             return False
-        password_hash = cursor.fetchone()[0]
+        password_hash = record["password_hash"]
         return checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
 
 
@@ -128,66 +125,62 @@ def create_borrower(email):
     password = ''.join(random.choices(
         string.ascii_letters + string.digits, k=16))
     password_hash = hashpw(password.encode('utf-8'), gensalt())
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            INSERT INTO Borrower (email, password_hash)
-            VALUES (%s, %s);
-        """, (email, password_hash.decode('utf-8')))
-        conn.commit()
+    driver = get_connection()
+    with driver.session() as session:
+        session.execute_write(create_borrower_tx, email, password_hash)
     return {'email': email, 'password': password}
 
 
+def create_borrower_tx(tx, email, password_hash):
+    tx.run("""
+        CREATE (b:Borrower {
+            email: $email,
+            password_hash: $password_hash
+        })
+    """, email=email, password_hash=password_hash.decode('utf-8'))
+    return True
+
+
 def delete_borrower(email):
-    conn = get_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                DELETE FROM Borrower
-                WHERE email = %s;
-            """, (email,))
-            if cursor.rowcount == 0:
-                raise ValueError(f"Borrower with email {email} not found.")
-            conn.commit()
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (b:Borrower {email: $email})
+            DETACH DELETE b
+            RETURN count(b) as deleted_count
+        """, email=email)
+        if result.single()["deleted_count"] == 0:
+            raise ValueError(f"Borrower with email {email} not found.")
         return True
-    except psycopg2.Error as e:
-        conn.rollback()
-        raise e
 
 
 def return_book(borrow_id):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            UPDATE borrow
-            SET is_returned = TRUE
-            WHERE borrow_id = %s AND is_returned = FALSE;
-        """, (borrow_id,))
-        if cursor.rowcount == 0:
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH ()-[b:BORROWED {borrow_id: $borrow_id, is_returned: false}]->()
+            SET b.is_returned = true
+            RETURN count(b) as updated_count
+        """, borrow_id=borrow_id)
+        if result.single()["updated_count"] == 0:
             raise ValueError("No active borrow found for this book.")
-        conn.commit()
 
 
 def list_active_borrows(limit=10, offset=0):
-    conn = get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT
-                b.title,
-                b.author,
-                bo.borrower_email,
-                bo.start_date,
-                bo.return_date
-            FROM
-                book b
-            JOIN borrow bo ON b.book_id = bo.book_id
-            WHERE bo.is_returned = FALSE
-            ORDER BY bo.return_date ASC
-            LIMIT %s OFFSET %s;
-        """, (limit, offset))
-        active_borrows = cursor.fetchall()
-        return response_to_dicts(cursor, active_borrows)
-    return active_borrows
+    driver = get_connection()
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (br:Borrower)-[b:BORROWED {is_returned: false}]->(bk:Book)
+            RETURN bk.title as title,
+                   bk.author as author,
+                   br.email as borrower_email,
+                   b.start_date as start_date,
+                   b.return_date as return_date
+            ORDER BY b.return_date ASC
+            SKIP $offset
+            LIMIT $limit
+        """, limit=limit, offset=offset)
+        return result.data()
 
 
 def check_admin_password(password):

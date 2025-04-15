@@ -1,17 +1,40 @@
 from flask import Flask, render_template, jsonify, request
+from flask.json.provider import JSONProvider
 import requests
+import json
 import logging
 from db import close_connection, check_password, borrow_book, create_borrower, delete_borrower, check_admin_password, list_borrows, return_book, list_active_borrows
 from flask_cors import CORS
 from config import config
 from db import list_available_books
+from neo4j.time import Date
+
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 CORS(app)
 app.teardown_appcontext(close_connection)
 
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Date):
+            return str(obj)
+        return super().default(obj)
+
+
+class CustomJSONProvider(JSONProvider):
+    def dumps(self, obj, **kwargs):
+        return json.dumps(obj, **kwargs, cls=CustomJSONEncoder)
+
+    def loads(self, s: str | bytes, **kwargs):
+        return json.loads(s, **kwargs)
+
+
+app.json = CustomJSONProvider(app)
+app.config["RESTX_JSON"] = {'cls': CustomJSONEncoder}
+
 logging.basicConfig(
-    level=logging.DEBUG,  # Changed from INFO to DEBUG
+    level=logging.INFO,  # Changed from INFO to DEBUG
     format='%(asctime)s %(levelname)s %(message)s',
     handlers=[
         logging.StreamHandler()
