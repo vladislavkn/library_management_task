@@ -12,6 +12,18 @@ services:
     volumes:
       - ./:/app
 
+  neo4j-init:
+    image: neo4j:5.26.0
+    entrypoint: ["/backups/neo4j-init.sh"]
+    volumes:
+      - ./neo4j_data:/data
+      - ./neo4j_backups:/backups
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    depends_on: []
+    command: []
+    restart: "no"
+
   neo4j:
     image: neo4j:5.26.0
     environment:
@@ -27,3 +39,7 @@ services:
     volumes:
       - ./neo4j_data:/data
       - ./neo4j_plugins:/plugins
+      - ./neo4j_backups:/backups
+    depends_on:
+      neo4j-init:
+        condition: service_completed_successfully

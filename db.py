@@ -4,7 +4,6 @@ from config import config
 from bcrypt import checkpw, hashpw, gensalt
 import random
 import string
-import json
 
 
 def get_connection():
